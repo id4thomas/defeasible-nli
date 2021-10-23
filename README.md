@@ -1,3 +1,40 @@
+# Reproduced Tasks
+
+Unofficial Reproduction of "Thinking Like a Skeptic: Defeasible Inference in Natural Language - Rudinger et al.) from EMNLP Findings 2020
+
+```
+└── train_nli.py    #Training script for inference task
+└── train_nlg.py    #Training script for generative task
+```
+
+## Discriminative defeasible inference task
+Paper description: finetuned RoBERTa-base, trained 2 epochs, concatenated P,H,U (separated by special token)
+
+Paper Reported RoBERTa classifier results (Best of 5 runs)
+
+| Task   | Inputs    | Dev Set Acc | Test Set Acc |
+| ------ | ---------- | ----- | ----- |
+| δ-SNLI    | (P,H,U)  | 83.3 | 81.6 |
+| δ-ATOMIC    |  (P,H,U) |  78.6  | 78.3  |
+| δ-Social    | (P,H,U)  |  85.7 | 86.2  |
+
+I used the following format as model input
+```
+input=tokenizer(f"[premise] {premise} [hypo] {hypothesis} [update] {update}")
+```
+
+Huggingface **RobertaForSequenceClassification** with RoBERTa-base pretrained weights was used as the classifier and trained with Huggingface Trainer.
+
+Train parameters are as follwing
+```
+max_seq_length = 128
+batch_size = 16
+learning_rate = 1e-5
+```
+
+
+# Original Repo
+
 # Overview
 
 The Defeasible-NLI dataset consists of three portions, extending the ATOMIC (Sap et al. 2019), SNLI (Bowman et al., 2015), and Social-Chemistry-101 (Forbes et al., 2020) datasets. These portions are called defeasible-atomic, defeasible-snli, and defeasible-social, respectively. (Or "delta-atomic," "delta-snli," and "delta-social" for short.)
