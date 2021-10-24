@@ -1,10 +1,11 @@
-# Reproduced Tasks
+# Reproducing Defeasible Inference Tasks - WIP
 
 Unofficial Reproduction of "Thinking Like a Skeptic: Defeasible Inference in Natural Language - Rudinger et al.) from EMNLP Findings 2020
 
 ```
 └── train_nli.py    #Training script for inference task
 └── train_nlg.py    #Training script for generative task
+└── train_nlg_encdec.py    #Training script for generative task with encoder-decoder models
 ```
 
 ## Discriminative defeasible inference task

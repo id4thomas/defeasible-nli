@@ -114,8 +114,62 @@ class DeltaGenDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         return {'input_ids': torch.tensor(self.inputs[idx]["input_ids"]),
-            'labels': torch.tensor(self.inputs[idx]["input_ids"]),
+                'labels': torch.tensor(self.inputs[idx]["input_ids"]),
                 'attention_mask': torch.tensor(self.inputs[idx]["attention_mask"])}
+
+    def __len__(self):
+        return len(self.inputs)
+
+class DeltaGenEncoderDecoderDataset(torch.utils.data.Dataset):
+    def __init__(self, tokenizer, file_path="train.jsonl", mode="phu",
+                max_seq_len=128, is_predict=False):
+
+        self.is_predict=is_predict
+
+        assert os.path.isfile(file_path)
+
+        records=read_jsonl_inputs(file_path)
+
+        update_label_vals={
+            "strengthener": 0,
+            "weakener": 1,
+        }
+
+        self.inputs=[]
+        self.labels=[]
+
+        for record in tqdm(records):
+            # Skip records with no update
+            if record["UpdateTypeImpossible"]==True:
+                continue
+
+            hypothesis=record["Hypothesis"]
+            update=record["Update"]
+            update_type=record["UpdateType"]
+
+            # "concatenate sentences p,h,u separated by special token"
+            update_tokens=tokenizer.tokenize(update)
+
+            if mode=="phu":
+                premise=record["Premise"]
+                #premise;hypothesis;update
+                enc_tokenized_text=tokenizer(f"[premise] {premise} [hypo] {hypothesis} [{update_type}]", truncation=True,max_length=max_seq_len, padding="max_length")
+                dec_tokenized_text=tokenizer(f"{update}", truncation=True,max_length=max_seq_len, padding="max_length")
+            elif mode=="hu":
+                #hypothesis;update
+                tokenized_text=tokenizer(f"[hypo] {hypothesis} [{update_type}] {update}", padding="max_length")
+            else:
+                #update
+                tokenized_text=tokenizer(f"[{update_type}] {update}", padding="max_length")
+
+            self.inputs.append((enc_tokenized_text,dec_tokenized_text))
+
+
+
+    def __getitem__(self, idx):
+        return {'input_ids': torch.tensor(self.inputs[idx][0]["input_ids"]),
+                'labels': torch.tensor(self.inputs[idx][1]["input_ids"]),
+                'attention_mask': torch.tensor(self.inputs[idx][0]["attention_mask"])}
 
     def __len__(self):
         return len(self.inputs)
