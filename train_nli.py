@@ -48,14 +48,16 @@ def train(args):
     model = RobertaForSequenceClassification.from_pretrained(model_name)
 
     data_dir=DATA_DIRS[args.data_name]
-    train_dataset=DeltaATOMICDataset(tokenizer, file_path=f"{data_dir}/train.jsonl", mode=INPUT_MODE[args.data_name])
-    dev_dataset=DeltaATOMICDataset(tokenizer, file_path=f"{data_dir}/dev.jsonl", mode=INPUT_MODE[args.data_name])
+    train_dataset=DeltaInferenceDataset(tokenizer, file_path=f"{data_dir}/train.jsonl", mode=INPUT_MODE[args.data_name])
+    dev_dataset=DeltaInferenceDataset(tokenizer, file_path=f"{data_dir}/dev.jsonl", mode=INPUT_MODE[args.data_name])
 
     print("Train Size",len(train_dataset))
     print("Dev Len",len(dev_dataset))
 
+    num_gpus=2
+    total_batch_size=args.gradient_accumulation_steps*args.batch_size*num_gpus
 
-    run_name=f"{args.data_name}_{args.model_name}_batch{args.batch_size}_lr{args.lr}_seed{args.seed}"
+    run_name=f"{args.data_name}_{args.model_name}_batch{total_batch_size}_lr{args.lr}_seed{args.seed}"
     batch_size=args.batch_size
     epochs=args.epochs
 
@@ -66,10 +68,10 @@ def train(args):
         per_device_train_batch_size = batch_size,
         per_device_eval_batch_size= batch_size,
         learning_rate=args.lr,
-        gradient_accumulation_steps = 16,    
-        load_best_model_at_end=True,
-        warmup_steps=500,
-        weight_decay=0.01,
+        gradient_accumulation_steps = args.gradient_accumulation_steps,    
+        # load_best_model_at_end=True,
+        # warmup_steps=500,
+        # weight_decay=0.01,
         save_strategy="epoch",
         evaluation_strategy = "epoch",
         # evaluation_strategy="steps",
@@ -77,21 +79,24 @@ def train(args):
         logging_dir = f"./log/{run_name}",
         logging_steps = 8,
         disable_tqdm = False, 
-        seed=10,
+        seed=args.seed,
         report_to="wandb"
         # fp16 = args.fp16,
         # dataloader_num_workers = 8,
     )
 
     trainer = Trainer(
-        model=model,                         # the instantiated 🤗 Transformers model to be trained
-        args=training_args,                  # training arguments, defined above
-        train_dataset=train_dataset,         # training dataset
-        eval_dataset=dev_dataset,             # evaluation dataset
+        model=model,
+        args=training_args,
+        train_dataset=train_dataset,
+        eval_dataset=dev_dataset,
         compute_metrics=compute_metrics
     )
 
     trainer.train()
+
+    #Save Model
+    # trainer.save_model(save_dir)
 
 
 def main(args):
@@ -131,6 +136,7 @@ if __name__ == '__main__':
     # Hyperparameters
     parser.add_argument('--epochs', type=int, help="Num epochs", default=3)
     parser.add_argument('--batch_size', type=int, help="Batch size", default=4)
+    parser.add_argument('--gradient_accumulation_steps', type=int, help="gradient_accumulation_steps", default=1)
     parser.add_argument('--lr', type=float, help="Learning rate", default=1e-5)
     parser.add_argument('--training_data_fraction', type=float, default=1.0)
 
