@@ -33,6 +33,9 @@ batch_size = 16
 learning_rate = 1e-5
 ```
 
+## Training Environment
+* Intel(R) Xeon(R) Silver 4114 CPU @ 2.20GHz
+* 2 * Titan-RTX (24GB)
 
 # Original Repo
 
