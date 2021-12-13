@@ -103,20 +103,17 @@ class DeltaInferenceDataset(torch.utils.data.Dataset):
         return len(self.inputs)
 
 
-class DeltaGenDataset(torch.utils.data.Dataset):
-    def __init__(self, tokenizer, file_path="train.jsonl", mode="phu",
-                max_seq_len=128, is_predict=False):
-
-        self.is_predict=is_predict
-
+class DeltaGenTextDataset(torch.utils.data.Dataset):
+    def __init__(self, file_path="train.jsonl", mode="phu", only_one_type=False, train_update_type="weakener", record_id_feature="AtomicEventId"):
+        
         assert os.path.isfile(file_path)
 
-        records=read_jsonl_inputs(file_path)
+        records=read_jsonl_inputs(file_path)#[:50]
 
-        update_label_vals={
-            "strengthener": 0,
-            "weakener": 1,
-        }
+        #Sample
+        # if "dev" in file_path:
+            # records=records[:int(len(records)*0.03)]
+        # records=records[:int(len(records)*0.03)]
 
         self.inputs=[]
         self.labels=[]
@@ -125,33 +122,47 @@ class DeltaGenDataset(torch.utils.data.Dataset):
             # Skip records with no update
             if record["UpdateTypeImpossible"]==True:
                 continue
-
+            
+            if only_one_type:
+                if record["UpdateType"]==train_update_type:
+                    pass
+                else:
+                    continue
+                
             hypothesis=record["Hypothesis"]
             update=record["Update"]
             update_type=record["UpdateType"]
 
-            # "concatenate sentences p,h,u separated by special token"
-            update_tokens=tokenizer.tokenize(update)
-
             if mode=="phu":
                 premise=record["Premise"]
                 #premise;hypothesis;update
-                tokenized_text=tokenizer(f"<|startoftext|>[premise] {premise} [hypo] {hypothesis} [{update_type}] {update}<|endoftext|>", truncation=True,max_length=max_seq_len, padding="max_length")
+                query=f"<|startoftext|>[premise] {premise} [hypo] {hypothesis} [{update_type}]"
+                target=f"<|startoftext|>[premise] {premise} [hypo] {hypothesis} [{update_type}] {update}<|endoftext|>"
             elif mode=="hu":
                 #hypothesis;update
-                tokenized_text=tokenizer(f"[hypo] {hypothesis} [{update_type}] {update}", padding="max_length")
+                query=f"<|startoftext|>[hypo] {hypothesis} [{update_type}]"
+                target=f"<|startoftext|>[hypo] {hypothesis} [{update_type}] {update}<|endoftext|>"
             else:
                 #update
-                tokenized_text=tokenizer(f"[{update_type}] {update}", padding="max_length")
+                query=f"<|startoftext|>[{update_type}]"
+                target=f"<|startoftext|>[{update_type}] {update}<|endoftext|>"
 
-            self.inputs.append(tokenized_text)
-
+            self.inputs.append([
+                query,
+                target,
+                update,
+                record[record_id_feature],
+                update_type
+            ])
 
 
     def __getitem__(self, idx):
-        return {'input_ids': torch.tensor(self.inputs[idx]["input_ids"]),
-                'labels': torch.tensor(self.inputs[idx]["input_ids"]),
-                'attention_mask': torch.tensor(self.inputs[idx]["attention_mask"])}
+        return {'query': self.inputs[idx][0],
+                'target': self.inputs[idx][1],
+                'update': self.inputs[idx][2],
+                'record_id': self.inputs[idx][3],
+                'update_type': self.inputs[idx][4],
+        }
 
     def __len__(self):
         return len(self.inputs)
