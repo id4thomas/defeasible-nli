@@ -154,6 +154,11 @@ def eval_model(model, tokenizer, dataset, device, eval_batch_size, **decode_para
         "rouge-l": rouge_scores["rouge-l"]["f"]
     }
 
+    rouge_scores=compute_rouge(pair_preds,pair_refs,metrics=["rouge-1","rouge-2","rouge-l"],multi_ref_mode="average")
+    score_dict["rouge-1_avg"]=rouge_scores["rouge-1"]["f"]
+    score_dict["rouge-2_avg"]=rouge_scores["rouge-2"]["f"]
+    score_dict["rouge-l_avg"]=rouge_scores["rouge-l"]["f"]
+
     ########### BLEU
     for i in range(1,5):
         score_dict[f"bleu-{i}"]=compute_bleu(pair_preds,pair_refs,max_order=i)
@@ -186,6 +191,8 @@ def eval(args):
         data_option="_weakener"
     else:
         data_option=""
+    
+    # data_option=""
     
     total_batch_size=64
     run_name=f"{args.data_name}{data_option}_{input_mode}_{args.model_name}_batch{total_batch_size}_lr{args.lr}_seed{args.seed}"
@@ -262,9 +269,11 @@ def eval(args):
     test_scores=eval_model(model, tokenizer, test_dataset ,device, args.eval_batch_size,**decode_params)
 
     metrics=["perplexity","bleu-1","bleu-2","bleu-3","bleu-4","rouge-1","rouge-2","rouge-l"]
+    metrics=dev_scores.keys()
 
     with open(f"{run_results_dir}.csv","w") as f:
-        f.write("data,perplexity,bleu-1,bleu-2,bleu-3,bleu-4,rouge-1,rouge-2,rouge-l\n")
+        # f.write("data,perplexity,bleu-1,bleu-2,bleu-3,bleu-4,rouge-1,rouge-2,rouge-l\n")
+        f.write("data,"+",".join(metrics)+"\n")
         f.write("dev,"+",".join(["{:.4f}".format(dev_scores[m]) for m in metrics])+"\n")
         f.write("test,"+",".join(["{:.4f}".format(test_scores[m]) for m in metrics])+"\n")
 
